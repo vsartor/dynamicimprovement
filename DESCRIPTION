@@ -1,7 +1,7 @@
 Package: dynamicimprovement
 Type: Package
 Title: Dynamic Improvement Mortality Models
-Version: 0.0.0
+Version: 0.1.0
 Author: Victhor Sartório
 Maintainer: Victhor Sartório <vct.sartor@gmail.com>
 Description: This package implements methods for dealing with mortality
