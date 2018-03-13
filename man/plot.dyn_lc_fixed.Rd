@@ -5,7 +5,7 @@
 \title{Displays graphical summaries for `dyn_lc_fixed` results.}
 \usage{
 \method{plot}{dyn_lc_fixed}(x, y, at = NULL, ages = NULL, years = NULL,
-  cred = 0.95, ...)
+  cred = 0.95, age = NULL, ...)
 }
 \arguments{
 \item{x}{The `dyn_lc_fixed` result.}
@@ -19,6 +19,8 @@
 \item{years}{Vector with the years if plotting 'kappa'. Optional.}
 
 \item{cred}{The credibility for the interval. Defaults to 0.95.}
+
+\item{age}{The age _index_ to check one-step ahead forecasts.}
 }
 \value{
 A `ggplot2` object.
