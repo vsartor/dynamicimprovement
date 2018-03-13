@@ -12,4 +12,5 @@ Description: This package implements methods for dealing with mortality
 License: file LICENSE
 Encoding: UTF-8
 LazyData: true
+Imports: assertthat
 RoxygenNote: 6.0.1
