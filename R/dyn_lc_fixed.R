@@ -25,6 +25,8 @@
 dyn_lc_fixed <- function(Y, phi = NULL, phi_a = NULL, phi_b = NULL,
                          phi_k = NULL, phi_d = NULL)
 {
+    tic <- getms()
+
     #-- Input validation: Part I --#
 
     assert_that(is.matrix(Y) & is.numeric(Y))
@@ -201,7 +203,9 @@ dyn_lc_fixed <- function(Y, phi = NULL, phi_a = NULL, phi_b = NULL,
         f_mean  = f_m,
         f_upper = f_u,
 
-        data = Y
+        data = Y,
+
+        elapsed = getms() - tic
     )
     class(r) <- c('dyn_lc_fixed', 'dyn_lc')
     r

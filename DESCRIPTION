@@ -12,5 +12,5 @@ Description: This package implements methods for dealing with mortality
 License: file LICENSE
 Encoding: UTF-8
 LazyData: true
-Imports: assertthat
+Imports: assertthat, ggplot2, latex2exp
 RoxygenNote: 6.0.1
