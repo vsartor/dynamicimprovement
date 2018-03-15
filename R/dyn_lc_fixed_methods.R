@@ -29,18 +29,31 @@ plot.dyn_lc_fixed <- function(x, y, at = NULL, ages = NULL, years = NULL,
     if (is.null(years)) years <- 1:ncol(x$data)
 
     if (y == "beta") {
-        #-- Visualize beta at some time point --#
+        if (is.null(age)) {
+            #-- Visualize beta at some time point --#
 
-        m <- x$mean_b[ ,at]
-        s <- x$sd_b[ ,at]
+            m <- x$mean_b[ ,at]
+            s <- x$sd_b[ ,at]
 
-        ggplot(NULL, aes(x = ages, y = m)) +
-            theme_bw() +
-            geom_line(col = 'darkblue') + geom_point(col = 'darkblue') +
-            xlab('x') + ylab(TeX(sprintf("$\\beta_{%d,x}", at))) +
-            geom_ribbon(aes(ymin = m - q0*s, ymax = m + q0*s),
-                        fill = 'darkblue', alpha = 0.2)
+            ggplot(NULL, aes(x = ages, y = m)) +
+                theme_bw() +
+                geom_line(col = 'darkblue') + geom_point(col = 'darkblue') +
+                xlab('x') + ylab(TeX(sprintf("$\\beta_{%d,x}", at))) +
+                geom_ribbon(aes(ymin = m - q0*s, ymax = m + q0*s),
+                            fill = 'darkblue', alpha = 0.2)
+        } else {
+            #-- Visualize beta evolution for some age --#
 
+            m <- x$mean_b[age, ]
+            s <- x$sd_b[age, ]
+
+            ggplot(NULL, aes(x = years, y = m)) +
+                theme_bw() +
+                geom_line(col = 'darkblue') + geom_point(col = 'darkblue') +
+                xlab('t') + ylab(TeX(sprintf("$\\beta_{%d,t}", age))) +
+                geom_ribbon(aes(ymin = m - q0*s, ymax = m + q0*s),
+                            fill = 'darkblue', alpha = 0.2)
+        }
     } else if (y == "alpha") {
         #-- Visualize alpha at some timepoint --#
 

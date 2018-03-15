@@ -16,3 +16,5 @@ catf <- function(x, ...) cat(sprintf("%s\n", sprintf(x, ...)))
 getms <- function() as.numeric(format(Sys.time(), "%OS5")) * 1000
 
 symmetrize <- function(X) { X[upper.tri(X)] <- trans(X)[upper.tri(X)]; X }
+
+mode <- function(v) { u <- unique(v); u[which.max(tabulate(match(v, u)))] }

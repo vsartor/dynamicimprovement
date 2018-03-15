@@ -4,8 +4,8 @@
 \alias{dyn_lc_semifixed}
 \title{Dynamic Lee-Carter Model with Fixed Observational Precisions}
 \usage{
-dyn_lc_semifixed(Y, phi = NULL, df_a = 0.99, df_b = 0.9, df_k = 0.85,
-  df_d = 0.95)
+dyn_lc_semifixed(Y, phi = NULL, df_a = 0.99, df_b = 0.9, df_k = 0.9,
+  df_d = 0.99, inf_a = T)
 }
 \arguments{
 \item{Y}{Numerical matrix with age information on rows and time information
@@ -17,9 +17,10 @@ on columns. Must be log-mortality with valid and finite values.}
 
 \item{df_b}{Discount factor for beta errors.}
 
-\item{df_k}{Discount factor for kappa errors.}
+\item{df_k}{Discount factor for kappa and delta errors.}
 
-\item{df_d}{Discount factor for delta errors.}
+\item{inf_a}{Controls if a prior based on the data should be used.
+Note that this is heresy.}
 }
 \value{
 A list with online means and variances for each parameter and

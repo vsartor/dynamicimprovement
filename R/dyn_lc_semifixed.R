@@ -13,8 +13,9 @@
 #' @param phi Observational precisions.
 #' @param df_a Discount factor for alpha errors.
 #' @param df_b Discount factor for beta errors.
-#' @param df_k Discount factor for kappa errors.
-#' @param df_d Discount factor for delta errors.
+#' @param df_k Discount factor for kappa and delta errors.
+#' @param inf_a Controls if a prior based on the data should be used.
+#'              Note that this is heresy.
 #'
 #' @return A list with online means and variances for each parameter and
 #'         forecasts. Same class as `dyn_lc_fixed`.
@@ -23,7 +24,7 @@
 #'
 #' @export
 dyn_lc_semifixed <- function(Y, phi = NULL, df_a = 0.99, df_b = 0.9,
-                             df_k = 0.85, df_d = 0.95)
+                             df_k = 0.9, df_d = 0.99, inf_a = T)
 {
     tic <- getms()
 
@@ -59,10 +60,6 @@ dyn_lc_semifixed <- function(Y, phi = NULL, df_a = 0.99, df_b = 0.9,
     assert_that(length(df_k) == 1)
     assert_that(df_k > 0 & df_k < 1)
 
-    assert_that(is.numeric(df_d))
-    assert_that(length(df_d) == 1)
-    assert_that(df_d > 0 & df_d < 1)
-
     #-- Constants --#
 
     # State-space dimension
@@ -84,18 +81,28 @@ dyn_lc_semifixed <- function(Y, phi = NULL, df_a = 0.99, df_b = 0.9,
 
     # Prior mean
     m_0        <- numeric(P)
-    m_0[idx_a] <- apply(Y, 1, mean) # TODO: This is theoretically wrong.
     m_0[idx_b] <- 0.02
-    m_0[idx_k] <- 20
+    m_0[idx_k] <- 30
     m_0[idx_d] <- -1
+    if (inf_a == T) {
+        # TODO: This is theoretically wrong.
+        m_0[idx_a] <- apply(Y, 1, mean)
+    } else {
+        m_0[idx_a] <- Y[ ,1]
+    }
 
     # Prior variance
     C_0        <- numeric(P)
-    C_0[idx_a] <- 0.001^2
     C_0[idx_b] <- 0.015^2
-    C_0[idx_k] <- 20^2
+    C_0[idx_k] <- 30^2
     C_0[idx_d] <- 0.05^2
-    C_0        <- diag(C_0)
+    if (inf_a == T) {
+        # TODO: This is theoretically wrong.
+        C_0[idx_a] <- 0.001^2
+    } else {
+        C_0[idx_a] <- 0.05^2
+    }
+    C_0 <- diag(C_0)
 
     # Observational covariance matrix
     V <- diag(1 / phi)
@@ -121,8 +128,9 @@ dyn_lc_semifixed <- function(Y, phi = NULL, df_a = 0.99, df_b = 0.9,
     Wt <- matrix(0, nrow = P, ncol = P)
     Wt[idx_a,idx_a] <- (1 - df_a) * Pt[idx_a,idx_a] / df_a
     Wt[idx_b,idx_b] <- (1 - df_b) * Pt[idx_b,idx_b] / df_b
-    Wt[idx_k:idx_d,idx_k:idx_d] <- (1-df_k)*Pt[idx_k:idx_d,idx_k:idx_d]/df_k
-    #Wt[idx_d,idx_d] <- (1 - df_d) * Wt[idx_d,idx_d] / df_d
+    # Wt[idx_L,idx_L] <- (1 - df_k) * Pt[idx_L,idx_L] / df_k
+    Wt[idx_k,idx_k] <- (1 - df_k) * Pt[idx_k,idx_k] / df_k
+    Wt[idx_d,idx_d] <- (1 - df_d) * Pt[idx_d,idx_d] / df_d
     R[ , ,1] <- Pt + Wt
 
     # Evolutional constants (Taylor approximation values)
@@ -145,7 +153,7 @@ dyn_lc_semifixed <- function(Y, phi = NULL, df_a = 0.99, df_b = 0.9,
     C[ , ,1] <- R[ , ,1] - B %*% Q %*% trans(B)
 
     # Standardization
-    scale            <- sqrt(sumabs2(m[idx_b, 1]))
+    scale            <- sqrt(sumabs2(m[idx_b, 1])) * mode(sign(m[idx_b,1]))
     m[idx_b,1]       <- m[idx_b,1] / scale
     C[idx_b,idx_b,1] <- C[idx_b,idx_b,1] / scale^2
     m[idx_k,1]       <- m[idx_k,1] * scale
@@ -160,8 +168,9 @@ dyn_lc_semifixed <- function(Y, phi = NULL, df_a = 0.99, df_b = 0.9,
         Wt <- matrix(0, nrow = P, ncol = P)
         Wt[idx_a,idx_a] <- (1 - df_a) * Pt[idx_a,idx_a] / df_a
         Wt[idx_b,idx_b] <- (1 - df_b) * Pt[idx_b,idx_b] / df_b
-        Wt[idx_k:idx_d,idx_k:idx_d] <- (1-df_k)*Pt[idx_k:idx_d,idx_k:idx_d]/df_k
-        #Wt[idx_d,idx_d] <- (1 - df_d) * Wt[idx_d,idx_d] / df_d
+        # Wt[idx_L,idx_L] <- (1 - df_k) * Pt[idx_L,idx_L] / df_k
+        Wt[idx_k,idx_k] <- (1 - df_k) * Pt[idx_k,idx_k] / df_k
+        Wt[idx_d,idx_d] <- (1 - df_d) * Pt[idx_d,idx_d] / df_d
         R[ , ,t] <- Pt + Wt
 
         # Evolutional constants (Taylor approximation values)
@@ -184,12 +193,20 @@ dyn_lc_semifixed <- function(Y, phi = NULL, df_a = 0.99, df_b = 0.9,
         C[ , ,t] <- R[ , ,t] - B %*% Q %*% trans(B)
 
         # Standardization
-        scale            <- sqrt(sumabs2(m[idx_b, 1]))
+        scale            <- sqrt(sumabs2(m[idx_b, t])) * mode(sign(m[idx_b,t]))
         m[idx_b,t]       <- m[idx_b,t] / scale
         C[idx_b,idx_b,t] <- C[idx_b,idx_b,t] / scale^2
         m[idx_k,t]       <- m[idx_k,t] * scale
         C[idx_k,idx_k,t] <- C[idx_k,idx_k,t] * scale^2
     }
+
+    #-- Static standardization --#
+
+    scale            <- (m[idx_k,1] - m[idx_k,N]) / (N-1)
+    m[idx_b, ]       <- m[idx_b, ] * scale
+    C[idx_b,idx_b, ] <- C[idx_b,idx_b, ] * scale^2
+    m[idx_k, ]       <- m[idx_k, ] / scale
+    C[idx_k,idx_k, ] <- C[idx_k,idx_k, ] / scale^2
 
     #-- Return results --#
 
