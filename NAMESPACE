@@ -3,6 +3,7 @@
 S3method(plot,dyn_lc_fixed)
 S3method(print,dyn_lc_fixed)
 export(dyn_lc_fixed)
+export(dyn_lc_semifixed)
 importFrom(assertthat,assert_that)
 importFrom(ggplot2,aes)
 importFrom(ggplot2,geom_line)
