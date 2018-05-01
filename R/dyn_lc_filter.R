@@ -13,10 +13,8 @@
 #' @param phi Observational precisions.
 #' @param df_a Discount factor for alpha errors.
 #' @param df_b Discount factor for beta errors.
-#' @param df_k Discount factor for kappa and delta errors.
-#' @param inf_a Controls if a prior based on the data should be used.
-#'              Note that this is heresy.
-#'
+#' @param df_k Discount factor for kappa error.
+#' @param df_d Discount factor for delta error.
 #' @return A list with online means and variances for each parameter and
 #'         forecasts. Same class as `dyn_lc_filter`.
 #'
@@ -24,7 +22,7 @@
 #'
 #' @export
 dyn_lc_filter <- function(Y, phi = NULL, df_a = 0.99, df_b = 0.9,
-                          df_k = 0.9, df_d = 0.99, inf_a = T)
+                          df_k = 0.9, df_d = 0.99)
 {
     tic <- getms()
 
@@ -74,7 +72,7 @@ dyn_lc_filter <- function(Y, phi = NULL, df_a = 0.99, df_b = 0.9,
     # Evolution matrix
     G               <- diag(P)
     G[idx_k, idx_d] <- 1
-    G_t             <- trans(G)
+    G_t             <- t.default(G)
 
     # Identity matrix of size A
     I_A <- diag(A)
@@ -84,25 +82,15 @@ dyn_lc_filter <- function(Y, phi = NULL, df_a = 0.99, df_b = 0.9,
     m_0[idx_b] <- 0.02
     m_0[idx_k] <- 30
     m_0[idx_d] <- -1
-    if (inf_a == T) {
-        # TODO: This is theoretically wrong.
-        m_0[idx_a] <- apply(Y, 1, mean)
-    } else {
-        m_0[idx_a] <- Y[ ,1]
-    }
+    m_0[idx_a] <- apply(Y, 1, mean)
 
     # Prior variance
     C_0        <- numeric(P)
     C_0[idx_b] <- 0.015^2
     C_0[idx_k] <- 30^2
     C_0[idx_d] <- 0.05^2
-    if (inf_a == T) {
-        # TODO: This is theoretically wrong.
-        C_0[idx_a] <- 0.001^2
-    } else {
-        C_0[idx_a] <- 0.05^2
-    }
-    C_0 <- diag(C_0)
+    C_0[idx_a] <- 0.001^2
+    C_0        <- diag(C_0)
 
     # Observational covariance matrix
     V <- diag(1 / phi)
@@ -141,7 +129,7 @@ dyn_lc_filter <- function(Y, phi = NULL, df_a = 0.99, df_b = 0.9,
 
     # One-step ahead forecasts
     f          <- Ft %*% a[ ,1] + mu_nu
-    Q          <- Ft %*% R[ , ,1] %*% trans(Ft) + V
+    Q          <- Ft %*% R[ , ,1] %*% t.default(Ft) + V
     f_m[ ,1]   <- f
     f_l[ ,1]   <- f - 1.96 * sqrt(diag(Q))
     f_u[ ,1]   <- f + 1.96 * sqrt(diag(Q))
@@ -149,9 +137,9 @@ dyn_lc_filter <- function(Y, phi = NULL, df_a = 0.99, df_b = 0.9,
 
     # State posteriors
     e        <- Y[ ,1] - f
-    B        <- R[ , ,1] %*% trans(Ft) %*% covinv(Q)
+    B        <- R[ , ,1] %*% t.default(Ft) %*% covinv(Q)
     m[ ,1]   <- a[ ,1] + B %*% e
-    C[ , ,1] <- R[ , ,1] - B %*% Q %*% trans(B)
+    C[ , ,1] <- R[ , ,1] - B %*% Q %*% t.default(B)
 
     # Standardization
     scale            <- sqrt(sumabs2(m[idx_b, 1])) * mode(sign(m[idx_b,1]))
@@ -181,7 +169,7 @@ dyn_lc_filter <- function(Y, phi = NULL, df_a = 0.99, df_b = 0.9,
 
         # One-step ahead forecasts
         f          <- Ft %*% a[ ,t] + mu_nu
-        Q          <- Ft %*% R[ , ,t] %*% trans(Ft) + V
+        Q          <- Ft %*% R[ , ,t] %*% t.default(Ft) + V
         f_m[ ,t]   <- f
         f_l[ ,t]   <- f - 1.96 * sqrt(diag(Q))
         f_u[ ,t]   <- f + 1.96 * sqrt(diag(Q))
@@ -189,9 +177,9 @@ dyn_lc_filter <- function(Y, phi = NULL, df_a = 0.99, df_b = 0.9,
 
         # State posteriors
         e        <- Y[ ,t] - f
-        B        <- R[ , ,t] %*% trans(Ft) %*% covinv(Q)
+        B        <- R[ , ,t] %*% t.default(Ft) %*% covinv(Q)
         m[ ,t]   <- a[ ,t] + B %*% e
-        C[ , ,t] <- R[ , ,t] - B %*% Q %*% trans(B)
+        C[ , ,t] <- R[ , ,t] - B %*% Q %*% t.default(B)
 
         # Standardization
         scale            <- sqrt(sumabs2(m[idx_b, t])) * mode(sign(m[idx_b,t]))

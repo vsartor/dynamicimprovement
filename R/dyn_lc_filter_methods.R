@@ -12,6 +12,7 @@
 #' @param years Vector with the years if plotting 'kappa'. Optional.
 #' @param cred The credibility for the interval. Defaults to 0.95.
 #' @param age The age _index_ to check one-step ahead forecasts.
+#' @param ... Unused.
 #'
 #' @return A `ggplot2` object.
 #'

@@ -17,6 +17,7 @@
 #'
 #' @importFrom assertthat assert_that
 #' @importFrom MASS mvrnorm
+#' @importFrom stats var rgamma rnorm
 #'
 #' @export
 dyn_lc <- function(Y, I = 2510, B = 10)

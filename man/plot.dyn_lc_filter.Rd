@@ -21,6 +21,8 @@
 \item{cred}{The credibility for the interval. Defaults to 0.95.}
 
 \item{age}{The age _index_ to check one-step ahead forecasts.}
+
+\item{...}{Unused.}
 }
 \value{
 A `ggplot2` object.

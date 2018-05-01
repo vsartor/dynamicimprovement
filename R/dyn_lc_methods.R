@@ -12,13 +12,14 @@
 #' @param years Vector with the years if plotting 'kappa'. Optional.
 #' @param cred The credibility for the interval. Defaults to 0.95.
 #' @param age The age _index_ to check one-step ahead forecasts.
+#' @param ... Unused.
 #'
 #' @return A `ggplot2` object.
 #'
 #' @importFrom ggplot2 ggplot geom_line geom_point geom_ribbon aes
 #' @importFrom ggplot2 theme_bw xlab ylab
 #' @importFrom latex2exp TeX
-#' @importFrom stats qnorm
+#' @importFrom stats median quantile
 #'
 #' @export
 plot.dyn_lc <- function(x, y, at = NULL, ages = NULL, years = NULL,
