@@ -20,10 +20,8 @@
 #' @importFrom stats var rgamma rnorm
 #'
 #' @export
-dyn_lc <- function(Y, I = 2510, B = 10)
+dyn_lc <- function(Y, I = 3000, B = 500)
 {
-    tic <- getms()
-
     #-- Input validation --#
 
     assert_that(is.matrix(Y))
@@ -115,12 +113,9 @@ dyn_lc <- function(Y, I = 2510, B = 10)
     ch.kappa <- ch.kappa[ ,drop.msk]
     ch.delta <- ch.delta[ ,drop.msk]
 
-    # Elapsed time
-    elapsed <- getms() - tic
-
     # Return
     ret <- list(alpha = ch.alpha, beta = ch.beta, kappa = ch.kappa, phi = ch.phi,
-                delta = ch.delta, time = elapsed, data = Y)
+                delta = ch.delta, data = Y)
     class(ret) <- "dyn_lc"
     return(ret)
 }

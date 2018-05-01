@@ -13,13 +13,13 @@ on columns. Must be log-mortality with valid and finite values.}
 
 \item{phi}{Observational precisions.}
 
-\item{df_a}{Discount factor for alpha errors.}
+\item{df_a}{Discount factor for alpha errors. Defaults to 0.99.}
 
-\item{df_b}{Discount factor for beta errors.}
+\item{df_b}{Discount factor for beta errors. Defaults to 0.90.}
 
-\item{df_k}{Discount factor for kappa error.}
+\item{df_k}{Discount factor for kappa error. Defaults to 0.90.}
 
-\item{df_d}{Discount factor for delta error.}
+\item{df_d}{Discount factor for delta error. Defaults to 0.99.}
 }
 \value{
 A list with online means and variances for each parameter and

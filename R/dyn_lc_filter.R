@@ -11,10 +11,10 @@
 #' @param Y Numerical matrix with age information on rows and time information
 #'          on columns. Must be log-mortality with valid and finite values.
 #' @param phi Observational precisions.
-#' @param df_a Discount factor for alpha errors.
-#' @param df_b Discount factor for beta errors.
-#' @param df_k Discount factor for kappa error.
-#' @param df_d Discount factor for delta error.
+#' @param df_a Discount factor for alpha errors. Defaults to 0.99.
+#' @param df_b Discount factor for beta errors. Defaults to 0.90.
+#' @param df_k Discount factor for kappa error. Defaults to 0.90.
+#' @param df_d Discount factor for delta error. Defaults to 0.99.
 #' @return A list with online means and variances for each parameter and
 #'         forecasts. Same class as `dyn_lc_filter`.
 #'
@@ -81,14 +81,14 @@ dyn_lc_filter <- function(Y, phi = NULL, df_a = 0.99, df_b = 0.9,
     m_0        <- numeric(P)
     m_0[idx_b] <- 0.02
     m_0[idx_k] <- 30
-    m_0[idx_d] <- -1
+    m_0[idx_d] <- -0.2
     m_0[idx_a] <- apply(Y, 1, mean)
 
     # Prior variance
     C_0        <- numeric(P)
     C_0[idx_b] <- 0.015^2
     C_0[idx_k] <- 30^2
-    C_0[idx_d] <- 0.05^2
+    C_0[idx_d] <- 0.1^2
     C_0[idx_a] <- 0.001^2
     C_0        <- diag(C_0)
 
@@ -102,6 +102,8 @@ dyn_lc_filter <- function(Y, phi = NULL, df_a = 0.99, df_b = 0.9,
     R <- alloc(P, P, N)
     m <- alloc(P, N)
     C <- alloc(P, P, N)
+    s <- alloc(P, N)
+    S <- alloc(P, P, N)
 
     # One-step ahead forecast summaries
     f_l <- f_m <- f_u <- alloc(A, N)
@@ -182,6 +184,11 @@ dyn_lc_filter <- function(Y, phi = NULL, df_a = 0.99, df_b = 0.9,
         C[ , ,t] <- R[ , ,t] - B %*% Q %*% t.default(B)
 
         # Standardization
+        scale            <- sqrt(sumabs2(a[idx_b, t])) * mode(sign(a[idx_b,t]))
+        a[idx_b,t]       <- a[idx_b,t] / scale
+        R[idx_b,idx_b,t] <- R[idx_b,idx_b,t] / scale^2
+        a[idx_k,t]       <- a[idx_k,t] * scale
+        R[idx_k,idx_k,t] <- R[idx_k,idx_k,t] * scale^2
         scale            <- sqrt(sumabs2(m[idx_b, t])) * mode(sign(m[idx_b,t]))
         m[idx_b,t]       <- m[idx_b,t] / scale
         C[idx_b,idx_b,t] <- C[idx_b,idx_b,t] / scale^2
@@ -189,15 +196,35 @@ dyn_lc_filter <- function(Y, phi = NULL, df_a = 0.99, df_b = 0.9,
         C[idx_k,idx_k,t] <- C[idx_k,idx_k,t] * scale^2
     }
 
+    #-- Smoothing --#
+
+    s[ ,N]   <- m[ ,N]
+    S[ , ,N] <- C[ , ,N]
+
+    for (i in (N-1):1) {
+        B        <- C[ , ,i] %*% G_t %*% solve(R[ , ,i+1])
+        s[ ,i]   <- m[ ,i] + B %*% (s[ ,i+1] - a[ ,i+1])
+        S[ , ,i] <- C[ , ,i] - B %*% (R[ , ,i+1] - S[ , ,i+1]) %*% t.default(B)
+
+        scale            <- sqrt(sumabs2(s[idx_b, i])) * mode(sign(s[idx_b, i]))
+        s[idx_b,i]       <- s[idx_b,i] / scale
+        S[idx_b,idx_b,i] <- C[idx_b,idx_b,i] / scale^2
+        s[idx_k,i]       <- m[idx_k,i] * scale
+        S[idx_k,idx_k,i] <- C[idx_k,idx_k,i] * scale^2
+    }
+
     #-- Static standardization --#
 
-    scale            <- (m[idx_k,1] - m[idx_k,N]) / (N-1)
-    m[idx_b, ]       <- m[idx_b, ] * scale
-    C[idx_b,idx_b, ] <- C[idx_b,idx_b, ] * scale^2
-    m[idx_k, ]       <- m[idx_k, ] / scale
-    C[idx_k,idx_k, ] <- C[idx_k,idx_k, ] / scale^2
+    #scale            <- (s[idx_k,1] - s[idx_k,N]) / (N-1)
+    #s[idx_b, ]       <- s[idx_b, ] * scale
+    #S[idx_b,idx_b, ] <- S[idx_b,idx_b, ] * scale^2
+    #s[idx_k, ]       <- s[idx_k, ] / scale
+    #S[idx_k,idx_k, ] <- S[idx_k,idx_k, ] / scale^2
 
     #-- Return results --#
+
+    m <- s
+    C <- S
 
     r <- list(
         mean_a = m[idx_a, ],

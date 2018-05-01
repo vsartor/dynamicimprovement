@@ -4,7 +4,7 @@
 \alias{dyn_lc}
 \title{Dynamic Lee-Carter Model}
 \usage{
-dyn_lc(Y, I = 2510, B = 10)
+dyn_lc(Y, I = 3000, B = 500)
 }
 \arguments{
 \item{Y}{Numerical matrix with age information on rows and time information
