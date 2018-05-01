@@ -3,9 +3,9 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#' Displays graphical summaries for `dyn_lc_fixed` results.
+#' Displays graphical summaries for `dyn_lc_filter` results.
 #'
-#' @param x The `dyn_lc_fixed` result.
+#' @param x The `dyn_lc_filter` result.
 #' @param y The parameter of interest.
 #' @param at If applicable, the time point of interest.
 #' @param ages Vector with the ages if plotting 'beta' or 'alpha'. Optional.
@@ -21,7 +21,7 @@
 #' @importFrom stats qnorm
 #'
 #' @export
-plot.dyn_lc_fixed <- function(x, y, at = NULL, ages = NULL, years = NULL,
+plot.dyn_lc_filter <- function(x, y, at = NULL, ages = NULL, years = NULL,
                               cred = 0.95, age = NULL, ...)
 {
     q0 <- qnorm(.5 + .5*cred)
@@ -120,7 +120,7 @@ plot.dyn_lc_fixed <- function(x, y, at = NULL, ages = NULL, years = NULL,
 }
 
 #' @export
-print.dyn_lc_fixed <- function(x, ...)
+print.dyn_lc_filter <- function(x, ...)
 {
     catf("Dynamic Improvement Lee Carter Extension")
     catf("----------------------------------------")

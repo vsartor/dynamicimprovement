@@ -17,4 +17,11 @@ getms <- function() as.numeric(format(Sys.time(), "%OS5")) * 1000
 
 symmetrize <- function(X) { X[upper.tri(X)] <- trans(X)[upper.tri(X)]; X }
 
+positivize <- function(X) {
+    tmp <- eigen(X)
+    V <- tmp$vectors
+    L <- ifelse(tmp$values <= 0, 0.0001, tmp$values)
+    V %*% diag(L) %*% solve(V)
+}
+
 mode <- function(v) { u <- unique(v); u[which.max(tabulate(match(v, u)))] }

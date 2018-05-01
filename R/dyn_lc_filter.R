@@ -3,27 +3,28 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#' Dynamic Lee-Carter Model with Fixed Precisions
+#' Dynamic Lee-Carter Model Filtering Routine
 #'
 #' Fully-dynamic extension of the Lee-Carter model but using fixed precisions
-#' for observational _and_ evolutional errors.
+#' for observational errors and discount factors for evolutional errors.
 #'
 #' @param Y Numerical matrix with age information on rows and time information
 #'          on columns. Must be log-mortality with valid and finite values.
 #' @param phi Observational precisions.
-#' @param phi_a Evolutional precisions for alpha.
-#' @param phi_b Evolutional precisions for beta.
-#' @param phi_k Evolutional precision for kappa.
-#' @param phi_d Evolutional precision for delta.
+#' @param df_a Discount factor for alpha errors.
+#' @param df_b Discount factor for beta errors.
+#' @param df_k Discount factor for kappa and delta errors.
+#' @param inf_a Controls if a prior based on the data should be used.
+#'              Note that this is heresy.
 #'
 #' @return A list with online means and variances for each parameter and
-#'         forecasts. Class `dyn_lc_fixed`.
+#'         forecasts. Same class as `dyn_lc_filter`.
 #'
 #' @importFrom assertthat assert_that
 #'
 #' @export
-dyn_lc_fixed <- function(Y, phi = NULL, phi_a = NULL, phi_b = NULL,
-                         phi_k = NULL, phi_d = NULL)
+dyn_lc_filter <- function(Y, phi = NULL, df_a = 0.99, df_b = 0.9,
+                          df_k = 0.9, df_d = 0.99, inf_a = T)
 {
     tic <- getms()
 
@@ -39,11 +40,7 @@ dyn_lc_fixed <- function(Y, phi = NULL, phi_a = NULL, phi_b = NULL,
 
     #-- Optional input entry --#
 
-    if (is.null(phi))   phi   <- rep(400, A)
-    if (is.null(phi_a)) phi_a <- rep(1 / 0.005^2, A)
-    if (is.null(phi_b)) phi_b <- rep(1 / 0.005^2, A)
-    if (is.null(phi_k)) phi_k <- 1 / 2
-    if (is.null(phi_d)) phi_d <- 1 / 0.0001
+    if (is.null(phi)) phi <- rep(400, A)
 
     #-- Input validation: Part II --#
 
@@ -51,21 +48,17 @@ dyn_lc_fixed <- function(Y, phi = NULL, phi_a = NULL, phi_b = NULL,
     assert_that(length(phi) == A)
     assert_that(all(phi > 0))
 
-    assert_that(is.numeric(phi_a))
-    assert_that(length(phi_a) == A)
-    assert_that(all(phi_a > 0))
+    assert_that(is.numeric(df_a))
+    assert_that(length(df_a) == 1)
+    assert_that(df_a > 0 & df_a < 1)
 
-    assert_that(is.numeric(phi_b))
-    assert_that(length(phi_b) == A)
-    assert_that(all(phi_b > 0))
+    assert_that(is.numeric(df_b))
+    assert_that(length(df_b) == 1)
+    assert_that(df_b > 0 & df_b < 1)
 
-    assert_that(is.numeric(phi_k))
-    assert_that(length(phi_k) == 1)
-    assert_that(phi_k > 0)
-
-    assert_that(is.numeric(phi_d))
-    assert_that(length(phi_d) == 1)
-    assert_that(phi_d > 0)
+    assert_that(is.numeric(df_k))
+    assert_that(length(df_k) == 1)
+    assert_that(df_k > 0 & df_k < 1)
 
     #-- Constants --#
 
@@ -88,24 +81,31 @@ dyn_lc_fixed <- function(Y, phi = NULL, phi_a = NULL, phi_b = NULL,
 
     # Prior mean
     m_0        <- numeric(P)
-    m_0[idx_a] <- apply(Y, 1, mean) # TODO: This is theoretically wrong.
     m_0[idx_b] <- 0.02
-    m_0[idx_k] <- 20
+    m_0[idx_k] <- 30
     m_0[idx_d] <- -1
+    if (inf_a == T) {
+        # TODO: This is theoretically wrong.
+        m_0[idx_a] <- apply(Y, 1, mean)
+    } else {
+        m_0[idx_a] <- Y[ ,1]
+    }
 
     # Prior variance
     C_0        <- numeric(P)
-    C_0[idx_a] <- 0.001^2
     C_0[idx_b] <- 0.015^2
-    C_0[idx_k] <- 20^2
+    C_0[idx_k] <- 30^2
     C_0[idx_d] <- 0.05^2
-    C_0        <- diag(C_0)
+    if (inf_a == T) {
+        # TODO: This is theoretically wrong.
+        C_0[idx_a] <- 0.001^2
+    } else {
+        C_0[idx_a] <- 0.05^2
+    }
+    C_0 <- diag(C_0)
 
     # Observational covariance matrix
     V <- diag(1 / phi)
-
-    # Evolutional covariance matrix
-    W <- diag(1 / c(phi_a, phi_b, phi_k, phi_d))
 
     #-- Allocate arrays --#
 
@@ -117,6 +117,7 @@ dyn_lc_fixed <- function(Y, phi = NULL, phi_a = NULL, phi_b = NULL,
 
     # One-step ahead forecast summaries
     f_l <- f_m <- f_u <- alloc(A, N)
+    f_Q <- alloc(A, A, N)
 
     #-- Filtering --#
 
@@ -124,7 +125,13 @@ dyn_lc_fixed <- function(Y, phi = NULL, phi_a = NULL, phi_b = NULL,
 
     # State priors
     a[ ,1]   <- G %*% m_0
-    R[ , ,1] <- G %*% C_0 %*% G_t + W
+    Pt <- symmetrize(G %*% C_0 %*% G_t)
+    Wt <- matrix(0, nrow = P, ncol = P)
+    Wt[idx_a,idx_a] <- (1 - df_a) * Pt[idx_a,idx_a] / df_a
+    Wt[idx_b,idx_b] <- (1 - df_b) * Pt[idx_b,idx_b] / df_b
+    Wt[idx_k,idx_k] <- (1 - df_k) * Pt[idx_k,idx_k] / df_k
+    Wt[idx_d,idx_d] <- (1 - df_d) * Pt[idx_d,idx_d] / df_d
+    R[ , ,1] <- Pt + Wt
 
     # Evolutional constants (Taylor approximation values)
     k_star <- a[idx_k,1]
@@ -133,11 +140,12 @@ dyn_lc_fixed <- function(Y, phi = NULL, phi_a = NULL, phi_b = NULL,
     mu_nu  <- -b_star * k_star
 
     # One-step ahead forecasts
-    f        <- Ft %*% a[ ,1] + mu_nu
-    Q        <- Ft %*% R[ , ,1] %*% trans(Ft) + V
-    f_m[ ,1] <- f
-    f_l[ ,1] <- f - 1.96 * sqrt(diag(Q))
-    f_u[ ,1] <- f + 1.96 * sqrt(diag(Q))
+    f          <- Ft %*% a[ ,1] + mu_nu
+    Q          <- Ft %*% R[ , ,1] %*% trans(Ft) + V
+    f_m[ ,1]   <- f
+    f_l[ ,1]   <- f - 1.96 * sqrt(diag(Q))
+    f_u[ ,1]   <- f + 1.96 * sqrt(diag(Q))
+    f_Q[ , ,1] <- Q
 
     # State posteriors
     e        <- Y[ ,1] - f
@@ -146,7 +154,7 @@ dyn_lc_fixed <- function(Y, phi = NULL, phi_a = NULL, phi_b = NULL,
     C[ , ,1] <- R[ , ,1] - B %*% Q %*% trans(B)
 
     # Standardization
-    scale            <- sqrt(sumabs2(m[idx_b, 1]))
+    scale            <- sqrt(sumabs2(m[idx_b, 1])) * mode(sign(m[idx_b,1]))
     m[idx_b,1]       <- m[idx_b,1] / scale
     C[idx_b,idx_b,1] <- C[idx_b,idx_b,1] / scale^2
     m[idx_k,1]       <- m[idx_k,1] * scale
@@ -157,7 +165,13 @@ dyn_lc_fixed <- function(Y, phi = NULL, phi_a = NULL, phi_b = NULL,
     for (t in 2:N) {
         # State priors
         a[ ,t]   <- G %*% m[ ,t-1]
-        R[ , ,t] <- G %*% C[ , ,t-1] %*% G_t + W
+        Pt <- symmetrize(G %*% C[ , ,t-1] %*% G_t)
+        Wt <- matrix(0, nrow = P, ncol = P)
+        Wt[idx_a,idx_a] <- (1 - df_a) * Pt[idx_a,idx_a] / df_a
+        Wt[idx_b,idx_b] <- (1 - df_b) * Pt[idx_b,idx_b] / df_b
+        Wt[idx_k,idx_k] <- (1 - df_k) * Pt[idx_k,idx_k] / df_k
+        Wt[idx_d,idx_d] <- (1 - df_d) * Pt[idx_d,idx_d] / df_d
+        R[ , ,t] <- Pt + Wt
 
         # Evolutional constants (Taylor approximation values)
         k_star <- a[idx_k,t]
@@ -166,11 +180,12 @@ dyn_lc_fixed <- function(Y, phi = NULL, phi_a = NULL, phi_b = NULL,
         mu_nu  <- -b_star * k_star
 
         # One-step ahead forecasts
-        f        <- Ft %*% a[ ,t] + mu_nu
-        Q        <- Ft %*% R[ , ,t] %*% trans(Ft) + V
-        f_m[ ,t] <- f
-        f_l[ ,t] <- f - 1.96 * sqrt(diag(Q))
-        f_u[ ,t] <- f + 1.96 * sqrt(diag(Q))
+        f          <- Ft %*% a[ ,t] + mu_nu
+        Q          <- Ft %*% R[ , ,t] %*% trans(Ft) + V
+        f_m[ ,t]   <- f
+        f_l[ ,t]   <- f - 1.96 * sqrt(diag(Q))
+        f_u[ ,t]   <- f + 1.96 * sqrt(diag(Q))
+        f_Q[ , ,t] <- Q
 
         # State posteriors
         e        <- Y[ ,t] - f
@@ -179,12 +194,20 @@ dyn_lc_fixed <- function(Y, phi = NULL, phi_a = NULL, phi_b = NULL,
         C[ , ,t] <- R[ , ,t] - B %*% Q %*% trans(B)
 
         # Standardization
-        scale            <- sqrt(sumabs2(m[idx_b, 1]))
+        scale            <- sqrt(sumabs2(m[idx_b, t])) * mode(sign(m[idx_b,t]))
         m[idx_b,t]       <- m[idx_b,t] / scale
         C[idx_b,idx_b,t] <- C[idx_b,idx_b,t] / scale^2
         m[idx_k,t]       <- m[idx_k,t] * scale
         C[idx_k,idx_k,t] <- C[idx_k,idx_k,t] * scale^2
     }
+
+    #-- Static standardization --#
+
+    scale            <- (m[idx_k,1] - m[idx_k,N]) / (N-1)
+    m[idx_b, ]       <- m[idx_b, ] * scale
+    C[idx_b,idx_b, ] <- C[idx_b,idx_b, ] * scale^2
+    m[idx_k, ]       <- m[idx_k, ] / scale
+    C[idx_k,idx_k, ] <- C[idx_k,idx_k, ] / scale^2
 
     #-- Return results --#
 
@@ -199,14 +222,18 @@ dyn_lc_fixed <- function(Y, phi = NULL, phi_a = NULL, phi_b = NULL,
         sd_k = sqrt(C[idx_k,idx_k, ]),
         sd_d = sqrt(C[idx_d,idx_d, ]),
 
+        cov_a = C[idx_a,idx_a, ],
+        cov_b = C[idx_b,idx_b, ],
+
         f_lower = f_l,
         f_mean  = f_m,
         f_upper = f_u,
+        f_error = f_Q,
 
         data = Y,
 
         elapsed = getms() - tic
     )
-    class(r) <- c('dyn_lc_fixed', 'dyn_lc')
+    class(r) <- c('dyn_lc_filter')
     r
 }
