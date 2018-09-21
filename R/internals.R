@@ -13,6 +13,8 @@ catf <- function(x, ...) cat(sprintf("%s\n", sprintf(x, ...)))
 
 getms <- function() as.numeric(format(Sys.time(), "%OS5")) * 1000
 
+gets <- function() proc.time()[3]
+
 symmetrize <- function(X) { X[upper.tri(X)] <- t.default(X)[upper.tri(X)]; X }
 
 positivize <- function(X) {

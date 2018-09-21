@@ -1,16 +1,16 @@
 Package: dynamicimprovement
 Type: Package
-Title: Dynamic Improvement Mortality Models
-Version: 1.0.0
+Title: Dynamic Improvement Mortality Modelling
+Version: 2.0.0
 Author: Victhor Sartório
-Maintainer: Victhor Sartório <vct.sartor@gmail.com>
+Maintainer: Victhor Sartório <victhor@dme.ufrj.br>
 Description: This package implements methods for dealing with mortality
     modelling from a Bayesian point of view and considering dynamic
     improvement models/extensions. This package is part of a research
     project on extending the Lee-Carter (1992) model to incorporate
-    dynamics on the improvement parameter.
+    temporal dynamics on the improvement parameter.
 License: file LICENSE
 Encoding: UTF-8
 LazyData: true
 Imports: assertthat, ggplot2, latex2exp, MASS
-RoxygenNote: 6.0.1
+RoxygenNote: 6.1.0

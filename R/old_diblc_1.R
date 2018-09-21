@@ -3,24 +3,32 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#' Dynamic Lee-Carter Model
+#' Dynamic Improvement Bayesian Lee-Carter
 #'
-#' Performs estimation of a fully dybamic Lee-Carter model with a gibbs estimator for
-#' estimation of variances.
+#' This routine is kept for archiving reasons and making old methodology
+#' available. See `diblc` documentation for the latest method.
+#'
+#' This routine in particular performs full state expansion, making every
+#' parameter of the model part of the state-space, all of them being modelled
+#' with fixed discount factors, and with observational variances being estimated
+#' with a Gibbs sampling step.
+#'
+#' This routines takes too long to run and unecessarily adds dynamics to some
+#' of the parameters.
 #'
 #' @param Y Numerical matrix with age information on rows and time information
 #'          on columns. Must be log-mortality with valid and finite values.
 #' @param I Number of iterations for the Gibbs sampler.
 #' @param B Number of iterations to be discarded.
 #'
-#' @return A `dyn_lc` object.
+#' @return A `diblc` object.
 #'
 #' @importFrom assertthat assert_that
 #' @importFrom MASS mvrnorm
 #' @importFrom stats var rgamma rnorm
 #'
 #' @export
-dyn_lc <- function(Y, I = 3000, B = 500)
+old_diblc_1 <- function(Y, I = 3000, B = 500)
 {
     #-- Input validation --#
 
@@ -63,7 +71,7 @@ dyn_lc <- function(Y, I = 3000, B = 500)
     #-- Initialize chains --#
 
     # Run filter using empirical phi
-    mod <- dyn_lc_filter(Y, phi = emp.phi)
+    mod <- old_diblc_filter_1(Y, phi = emp.phi)
 
     # Initialize with empirical phi and filter means
     ch.phi[ ,1]     <- emp.phi
@@ -86,7 +94,7 @@ dyn_lc <- function(Y, I = 3000, B = 500)
         }
 
         # Filter step
-        mod <- dyn_lc_filter(Y, phi = ch.phi[ ,i])
+        mod <- old_diblc_filter_1(Y, phi = ch.phi[ ,i])
 
         for (n in 1:N) {
             # Alpha step
@@ -116,6 +124,6 @@ dyn_lc <- function(Y, I = 3000, B = 500)
     # Return
     ret <- list(alpha = ch.alpha, beta = ch.beta, kappa = ch.kappa, phi = ch.phi,
                 delta = ch.delta, data = Y)
-    class(ret) <- "dyn_lc"
+    class(ret) <- "diblc"
     return(ret)
 }
